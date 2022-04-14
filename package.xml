@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>osoyoo_omni_drive</name>
+  <version>0.0.0</version>
+  <description>Osooyo omnidirectional drive robot enhanced with a raspberry 4.0 and custom shield</description>
+
+  <maintainer email="olima_84@yahoo.com">Oscar Lima</maintainer>
+
+  <license>BSD</license>
+
+  <!-- <build_depend>roscpp</build_depend> -->
+  <!-- <exec_depend>todo</exec_depend> -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>
