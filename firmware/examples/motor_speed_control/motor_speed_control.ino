@@ -58,8 +58,7 @@
 #define hall_sensor_FL1 A8  // FL
 #define hall_sensor_FL2 A10 // FL
 
-// TODO: figure out this value for oyku
-#define pulses_per_revolution 1235  // 1235 or 1236 very good already, 1236 slightly overshoots
+#define pulses_per_revolution 450
 
 /******** GLOBALS *********/
 
