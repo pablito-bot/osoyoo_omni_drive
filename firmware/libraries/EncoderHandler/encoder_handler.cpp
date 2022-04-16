@@ -66,3 +66,8 @@ long int EncoderHandler::get_encoder_count()
 {
     return encoder_count_;
 }
+
+void EncoderHandler::reset_encoder_count()
+{
+    encoder_count_ = 0;
+}

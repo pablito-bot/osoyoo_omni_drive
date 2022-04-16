@@ -16,6 +16,7 @@ class EncoderHandler
     EncoderHandler(uint8_t hall_sensor_1, uint8_t hall_sensor_2);
     void encoder_state_change();
     long int get_encoder_count();
+    void reset_encoder_count();
 
   private:
     uint8_t hall_sensor_1_;
