@@ -43,6 +43,7 @@ void Motor::drive(int speed)
   if (speed>=0) fwd(speed);
   else rev(-speed);
 }
+
 void Motor::drive(int speed, int duration)
 {
   drive(speed);
@@ -65,8 +66,8 @@ void Motor::rev(int speed)
 
 void Motor::brake()
 {
-   // digitalWrite(In1, HIGH);
-   // digitalWrite(In2, HIGH);
+   digitalWrite(In1, HIGH);
+   digitalWrite(In2, HIGH);
    analogWrite(PWM,0);
 }
 
