@@ -38,8 +38,8 @@
 #define IN2_MRL 13
 #define PWM_MRL 11
 
-#define IN1_MFR 7   // MFR: Motor front right
-#define IN2_MFR 5
+#define IN1_MFR 5   // MFR: Motor front right
+#define IN2_MFR 7
 #define PWM_MFR 6
 
 #define IN1_MFL 4   // MFL: Motor front left
@@ -48,17 +48,17 @@
 
 // encoders
 
-#define hall_sensor_RR1 A14 // RR
-#define hall_sensor_RR2 A15 // RR
+#define hall_sensor_RR1 A15 // RR
+#define hall_sensor_RR2 A14 // RR
 
-#define hall_sensor_RL1 A13 // RL
-#define hall_sensor_RL2 A12 // RL
+#define hall_sensor_RL1 A12 // RL
+#define hall_sensor_RL2 A13 // RL
 
 #define hall_sensor_FR1 A9  // FR
 #define hall_sensor_FR2 A11 // FR
 
-#define hall_sensor_FL1 A8  // FL
-#define hall_sensor_FL2 A10 // FL
+#define hall_sensor_FL1 A10 // FL
+#define hall_sensor_FL2 A8  // FL
 
 #define pulses_per_revolution 450
 
@@ -68,14 +68,14 @@
 
 // these constants are used to allow you to make your motor configuration 
 // line up with function names like forward.  Value can be 1 or -1
-const int motor_offset_rr = 1;
-const int motor_offset_rl = 1;
+const int motor_offset_rr = -1;
+const int motor_offset_rl = -1;
 const int motor_offset_fr = 1;
-const int motor_offset_fl = 1;
+const int motor_offset_fl = -1;
 
 // Initializing motors.  The library will allow you to initialize as many
 // motors as you have memory for.  If you are using functions like forward
-// that take 2 motors as arguements you can either write new functions or
+// that take 2 motors as arguments you can either write new functions or
 // call the function more than once.
 Motor motor_rr = Motor(IN1_MRR, IN2_MRR, PWM_MRR, motor_offset_rr);
 Motor motor_rl = Motor(IN1_MRL, IN2_MRL, PWM_MRL, motor_offset_rl);
@@ -97,7 +97,7 @@ unsigned long last_time;
 // PID documentation available under:
 //    http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
 
-double setpoint = 0.2;
+double setpoint = 3.0;
 double rr_speed_sensor = 0.0;
 double rl_speed_sensor = 0.0;
 double fr_speed_sensor = 0.0;
@@ -122,6 +122,9 @@ PID fl_pid(&fl_speed_sensor, &fl_double_pid_output, &setpoint, kp, ki, kd, DIREC
 
 void setup()
 {
+  // initialize serial port at 9600 baud rate
+  Serial.begin(9600);
+
   // encoder pin configuration
   // setup interrupt callback function, gets executed upon pin state change
   auto rr1_pin_change = [] () { encoder_rr.encoder_state_change(); }; // C++ 11 lambda functions
@@ -132,9 +135,6 @@ void setup()
   PCintPort::attachInterrupt(hall_sensor_RL1, rl1_pin_change, CHANGE);
   PCintPort::attachInterrupt(hall_sensor_FR1, fr1_pin_change, CHANGE);
   PCintPort::attachInterrupt(hall_sensor_FL1, fl1_pin_change, CHANGE);
-
-  // initialize serial port at 9600 baud rate
-  Serial.begin(9600);
 
   // initialize variable to measure speed
   last_time = millis();
@@ -159,7 +159,7 @@ void setup()
   fr_pid.SetSampleTime(ctrl_delay);
   fl_pid.SetSampleTime(ctrl_delay);
 
-  // not sure if this dealy is really needed
+  // not sure if this is really needed
   delay(300);
   Serial.println("setup complete");
 }
@@ -192,11 +192,11 @@ float measureSpeed(double &rr_speed, double &rl_speed, double &fr_speed, double 
    */
 
   // return value is in : rad/sec
-  // 1000 * 2 * pi = 6.2831853071
-  rr_speed = double((delta_pulses_rr * 6.2831853071) / ( delta_time * pulses_per_revolution));
-  rl_speed = double((delta_pulses_rl * 6.2831853071) / ( delta_time * pulses_per_revolution));
-  fr_speed = double((delta_pulses_fr * 6.2831853071) / ( delta_time * pulses_per_revolution));
-  fl_speed = double((delta_pulses_fl * 6.2831853071) / ( delta_time * pulses_per_revolution));
+  // 1000 * 2 * pi = 6283.1853071
+  rr_speed = double((delta_pulses_rr * 6283.1853071) / ( delta_time * pulses_per_revolution));
+  rl_speed = double((delta_pulses_rl * 6283.1853071) / ( delta_time * pulses_per_revolution));
+  fr_speed = double((delta_pulses_fr * 6283.1853071) / ( delta_time * pulses_per_revolution));
+  fl_speed = double((delta_pulses_fl * 6283.1853071) / ( delta_time * pulses_per_revolution));
 }
 
 /******** LOOP *********/
