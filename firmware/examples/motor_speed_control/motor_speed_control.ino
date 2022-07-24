@@ -16,6 +16,8 @@
 #include <PinChangeInt.h>
 #include <PID_v1.h> // PID based control library to achieve motor speed setpoint as fast and smooth as possible
 
+#include <encoder_handler.h> // helper encoder library
+
 /******** DEFINE *********/
 
 /* motors
@@ -49,12 +51,11 @@ const int motor_offset_rr = 1;
 
 // Initializing motors.  The library will allow you to initialize as many
 // motors as you have memory for.  If you are using functions like forward
-// that take 2 motors as arguements you can either write new functions or
+// that take 2 motors as arguments you can either write new functions or
 // call the function more than once.
 Motor motor_rr = Motor(IN1_MRR, IN2_MRR, PWM_MRR, motor_offset_rr);
 
-// encoder tick counters
-volatile unsigned int count_rr = 0;
+EncoderHandler encoder_rr = EncoderHandler(hall_sensor_RR1, hall_sensor_RR2);
 
 // measure elapsed time
 unsigned long last_time;
@@ -64,7 +65,7 @@ unsigned long last_time;
 // PID documentation available under:
 //    http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
 
-double setpoint = 2.0;
+double setpoint = 4.0;
 double speed_sensor = 0.0;
 double double_pid_output = 0.0;
 
@@ -80,13 +81,12 @@ PID myPID(&speed_sensor, &double_pid_output, &setpoint, kp, ki, kd, DIRECT);
 
 void setup()
 {
-    // encoder pin configuration
-    pinMode(hall_sensor_RR1, INPUT);
-    digitalWrite(hall_sensor_RR1, HIGH); //use the internal pullup resistor
-    PCintPort::attachInterrupt(hall_sensor_RR1, interruptCountRR, CHANGE);
-
     // initialize serial port at 9600 baud rate
     Serial.begin(9600);
+
+    // setup interrupt callback function, gets executed upon pin state change
+    auto rr1_pin_change = [] () { encoder_rr.encoder_state_change(); }; // C++ 11 lambda functions
+    PCintPort::attachInterrupt(hall_sensor_RR1, rr1_pin_change, CHANGE);
 
     // initialize variable to measure speed
     last_time = millis();
@@ -102,19 +102,14 @@ void setup()
     // sets the period, in Milliseconds, at which the calculation is performed
     myPID.SetSampleTime(ctrl_delay);
 
-    // not sure if this dealy is really needed
+    // not sure if this is really needed
     delay(300);
     Serial.println("setup complete");
 }
 
-void interruptCountRR()
-{
-    count_rr++;
-}
-
 float measureSpeed()
 {
-    float delta_pulses_right = float(count_rr);
+    float delta_pulses_right = float(encoder_rr.get_encoder_count());
 
     unsigned long current_time = millis();
 
@@ -124,7 +119,7 @@ float measureSpeed()
     last_time = current_time;
 
     // reset count
-    count_rr = 0;
+    encoder_rr.reset_encoder_count();
 
     /*  speed conversion from : [pulses] / [ms]    to    [rad] / [sec]
      *  
