@@ -94,7 +94,7 @@ void setup()
     // PID controller
 
     // limit the output of the PID controller between 0 and 255
-    myPID.SetOutputLimits(0, 255);
+    myPID.SetOutputLimits(-255, 255);
 
     // turn the PID on and rise flag for "auto" mode
     myPID.SetMode(AUTOMATIC);
