@@ -8,6 +8,10 @@
 #include <std_msgs/String.h>
 #include <geometry_msgs/Twist.h>
 
+// if we go for nav_msgs/Odometry data type then we need to convert rpy to quaternion from arduino and publish proper ros time,
+// lets use a republisher approach as with other robot Pablowsky...
+#include <osoyoo_diff_drive/lightOdom.h>
+
 #include <SparkFun_TB6612.h> // TB6612FNG (motor driver / H-bridge chip) library to control the motors
 
 /* There are only two external interrupt pins, INT0 and INT1, and they are mapped to Arduino pins 2 and 3,
@@ -70,6 +74,15 @@
 /******** GLOBALS *********/
 
 ros::NodeHandle nh;
+
+// setup odom pub
+osoyoo_diff_drive::lightOdom light_odom_msg;
+ros::Publisher odom_pub("lightweight_odom", &light_odom_msg);
+
+// robot pose wrt odom frame
+double rx = 0.0;
+double ry = 0.0;
+double rtheta = 0.0;
 
 // motors
 
@@ -158,6 +171,8 @@ void setup()
 {
   nh.initNode(); // register ros node
   nh.subscribe(sub); // subscribe to topic
+  // publish odom
+  nh.advertise(odom_pub);
 
   // encoder pin configuration
   // setup interrupt callback function, gets executed upon pin state change
@@ -176,10 +191,10 @@ void setup()
   // PID controller
 
   // limit the output of the PID controller between 0 and 255
-  rr_pid.SetOutputLimits(0, 255);
-  rl_pid.SetOutputLimits(0, 255);
-  fr_pid.SetOutputLimits(0, 255);
-  fl_pid.SetOutputLimits(0, 255);
+  rr_pid.SetOutputLimits(-255, 255);
+  rl_pid.SetOutputLimits(-255, 255);
+  fr_pid.SetOutputLimits(-255, 255);
+  fl_pid.SetOutputLimits(-255, 255);
 
   // turn the PID on and rise flag for "auto" mode
   rr_pid.SetMode(AUTOMATIC);
@@ -211,6 +226,38 @@ float measureSpeed(double &rr_speed, double &rl_speed, double &fr_speed, double 
   // get time for next cycle
   last_time = current_time;
 
+  // Odometry
+  double encoders_data[4];
+  encoders_data[0] = delta_pulses_rr;
+  encoders_data[1] = delta_pulses_rl;
+  encoders_data[2] = delta_pulses_fr;
+  encoders_data[3] = delta_pulses_fl;
+
+  double d_wheels[4];
+  for (int i = 0; i < 4; i++)
+    d_wheels[i] = encoders_data[i] * 2 * 3.1415 / pulses_per_revolution; // compute the angle covered by each wheel in radians
+
+  double delta_linear_x = (wheel_radius_ / 4) * (d_wheels[0] + d_wheels[1] + d_wheels[2] + d_wheels[3]);
+  double delta_linear_y = (wheel_radius_ / 4) * (-d_wheels[0] + d_wheels[1] + d_wheels[2] - d_wheels[3]);
+  light_odom_msg.vx = delta_linear_x / delta_time;
+  light_odom_msg.vy = delta_linear_y / delta_time;
+
+  double delta_angular;
+
+  delta_angular = -(wheel_radius_ / (4 * lx_ * 2)) * (d_wheels[0] - d_wheels[1] + d_wheels[2] - d_wheels[3]);
+  light_odom_msg.vtheta = delta_angular / delta_time;
+
+  // apply odometry to global position of the robot
+  rx += delta_linear_x * cos(rtheta + delta_angular) - delta_linear_y * sin(rtheta + delta_angular); // += delta_x
+  ry += delta_linear_x * sin(rtheta + delta_angular) + delta_linear_y * cos(rtheta + delta_angular); // += delta_y
+  rtheta -= delta_angular;
+
+  // publish odom msg to ROS
+  light_odom_msg.rx = rx;
+  light_odom_msg.ry = ry;
+  light_odom_msg.r_theta = rtheta;
+  odom_pub.publish( &light_odom_msg );
+
   // reset count
   encoder_rr.reset_encoder_count();
   encoder_rl.reset_encoder_count();
@@ -236,7 +283,7 @@ float measureSpeed(double &rr_speed, double &rl_speed, double &fr_speed, double 
 
 void loop()
 {
-  // update PID input
+  // update PID input and compute odometry
   measureSpeed(rr_speed_sensor, rl_speed_sensor, fr_speed_sensor, fl_speed_sensor);
 
   // calculate required PWM to match the desired speed
@@ -250,6 +297,13 @@ void loop()
   int int_rl_pid_output = int(rl_double_pid_output);
   int int_fr_pid_output = int(fr_double_pid_output);
   int int_fl_pid_output = int(fl_double_pid_output);
+
+  // avoid noise in the motor
+  int lpv = 30; // low_pwm_value
+  if ( -lpv < int_rr_pid_output && int_rr_pid_output < lpv) int_rr_pid_output = 0;
+  if ( -lpv < int_rl_pid_output && int_rl_pid_output < lpv) int_rl_pid_output = 0;
+  if ( -lpv < int_fr_pid_output && int_fr_pid_output < lpv) int_fr_pid_output = 0;
+  if ( -lpv < int_fl_pid_output && int_fl_pid_output < lpv) int_fl_pid_output = 0;
 
   // send PID output to motor
   motor_rr.drive(int_rr_pid_output);
